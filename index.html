@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mini Repertorization</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+
+<style>
+
+:root{
+    --bg:#f6f2e8;
+    --panel:#fffdf8;
+    --ink:#20281f;
+    --ink-soft:#5b6459;
+    --forest:#233d2c;
+    --forest-light:#325a40;
+    --gold:#b0803c;
+    --gold-light:#e9cd93;
+    --border:#e1d7bf;
+    --grade1:#5b6472;
+    --grade2:#2b628a;
+    --grade3:#b23a2f;
+    --grade4:#7a1e3d;
+    --shadow:0 6px 20px rgba(35,61,44,.08);
+    --radius:12px;
+}
+
+*{box-sizing:border-box;}
+
+html{
+    width:100%;
+    overflow-x:hidden;
+}
+
+body{
+    width:100%;
+    font-family:'Inter',Arial,Helvetica,sans-serif;
+    margin:0;
+    background:
+        radial-gradient(1200px 500px at 10% -10%, rgba(176,128,60,.08), transparent),
+        var(--bg);
+    color:var(--ink);
+    padding-bottom:46px;
+    overflow-x:hidden;
+}
+
+.container{
+    max-width:1180px;
+    width:100%;
+    margin:auto;
+    padding:24px 16px 60px;
+}
+
+@media(min-width:640px){
+    .container{ padding:32px 24px 60px; }
+}
+
+header.top{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    text-align:center;
+    margin:0 auto 28px;
+    max-width:640px;
+}
+
+header.top .eyebrow{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.12em;
+    text-transform:uppercase;
+    color:var(--gold);
+    background:var(--panel);
+    border:1px solid var(--border);
+    padding:6px 14px;
+    border-radius:999px;
+    box-shadow:var(--shadow);
+    max-width:100%;
+}
+
+h2{
+    font-family:'Fraunces',serif;
+    font-weight:700;
+    font-size:clamp(26px,7vw,38px);
+    line-height:1.15;
+    margin:16px 0 8px;
+    color:var(--forest);
+}
+
+.subtitle{
+    color:var(--ink-soft);
+    font-size:clamp(13px,3.6vw,14.5px);
+    line-height:1.55;
+    max-width:480px;
+    margin:0 auto;
+}
+
+.layout{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:18px;
+    min-width:0;
+}
+
+.layout > div{
+    min-width:0;
+}
+
+@media(min-width:900px){
+    .layout{
+        grid-template-columns:minmax(0,0.85fr) minmax(0,1.15fr);
+        align-items:start;
+    }
+}
+
+.card{
+    min-width:0;
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px;
+    box-shadow:var(--shadow);
+}
+
+.card + .card{
+    margin-top:16px;
+}
+
+.card h3{
+    font-family:'Fraunces',serif;
+    font-size:19px;
+    margin:0 0 12px;
+    color:var(--forest);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+}
+
+.count-pill{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    background:var(--forest);
+    color:#fff;
+    padding:3px 9px;
+    border-radius:999px;
+    font-weight:600;
+}
+
+textarea{
+    display:block;
+    width:100%;
+    min-height:90px;
+    padding:12px 13px;
+    font-size:16px;
+    font-family:'Inter',sans-serif;
+    border-radius:10px;
+    border:1px solid var(--border);
+    box-sizing:border-box;
+    resize:vertical;
+    background:#fffefb;
+    color:var(--ink);
+}
+
+textarea:focus{
+    outline:2px solid var(--gold-light);
+    outline-offset:1px;
+    border-color:var(--gold);
+}
+
+.hint{
+    font-size:12px;
+    color:var(--ink-soft);
+    margin:6px 2px 0;
+}
+
+.actions{
+    display:flex;
+    gap:10px;
+    margin-top:10px;
+    flex-wrap:wrap;
+}
+
+button{
+    padding:10px 18px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:14.5px;
+    font-weight:600;
+    font-family:'Inter',sans-serif;
+    transition:transform .08s ease, box-shadow .15s ease, opacity .15s ease;
+}
+
+button:active{ transform:scale(.97); }
+
+.add{
+    background:var(--forest);
+    color:#fff;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    min-width:128px;
+    justify-content:center;
+}
+
+.add:hover:not(:disabled){ background:var(--forest-light); }
+
+.add:disabled{ cursor:default; opacity:.85; }
+
+.clear{
+    background:transparent;
+    color:#8a3b32;
+    border:1px solid #e3c3bd;
+}
+
+.clear:hover{ background:#fbeeec; }
+
+.spinner{
+    width:14px;
+    height:14px;
+    border:2px solid rgba(255,255,255,.45);
+    border-top-color:#fff;
+    border-radius:50%;
+    display:inline-block;
+    animation:spin .7s linear infinite;
+}
+
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+#rubrics{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-top:14px;
+}
+
+.empty-note{
+    color:var(--ink-soft);
+    font-size:13.5px;
+    font-style:italic;
+    padding:10px 2px;
+}
+
+.rubric{
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:#fffefb;
+    overflow:hidden;
+}
+
+.rubric-head{
+    display:flex;
+    flex-wrap:wrap;
+    justify-content:space-between;
+    align-items:center;
+    gap:8px 10px;
+    padding:10px 12px;
+}
+
+.rubric-title{
+    display:flex;
+    gap:8px;
+    align-items:baseline;
+    min-width:0;
+    flex:1 1 180px;
+}
+
+.rubric-index{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--gold);
+    flex-shrink:0;
+}
+
+.rubric-text{
+    font-size:14px;
+    font-weight:600;
+    color:var(--ink);
+    overflow-wrap:anywhere;
+}
+
+.rubric-meta{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    flex-shrink:0;
+}
+
+.med-count{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    color:var(--ink-soft);
+    background:#f1ece0;
+    padding:3px 8px;
+    border-radius:999px;
+    white-space:nowrap;
+}
+
+.remove{
+    background:#f6e2df;
+    color:#8a3b32;
+    padding:5px 9px;
+    font-size:12px;
+    border-radius:6px;
+}
+
+.remove:hover{ background:#efd0cb; }
+
+details.remedy-drop{ border-top:1px solid var(--border); }
+
+details.remedy-drop > summary{
+    list-style:none;
+    cursor:pointer;
+    padding:8px 12px;
+    font-size:12.5px;
+    color:var(--forest);
+    font-weight:600;
+    display:flex;
+    align-items:center;
+    gap:6px;
+    user-select:none;
+    background:#faf6ec;
+}
+
+details.remedy-drop > summary::-webkit-details-marker{ display:none; }
+
+details.remedy-drop > summary::before{
+    content:"▸";
+    font-size:11px;
+    transition:transform .15s ease;
+    color:var(--gold);
+}
+
+details.remedy-drop[open] > summary::before{
+    transform:rotate(90deg);
+}
+
+.remedy-list{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    padding:10px 12px 12px;
+}
+
+.pill{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    font-weight:600;
+    padding:4px 9px;
+    border-radius:999px;
+    border:1px solid transparent;
+    white-space:nowrap;
+}
+
+.g1{ color:var(--grade1); background:#eef0f3; border-color:#d8dce2; }
+.g2{ color:var(--grade2); background:#e7f0f7; border-color:#c9dfee; }
+.g3{ color:var(--grade3); background:#fbeae7; border-color:#f0cac3; font-weight:700; }
+.g4{ color:#fff; background:var(--grade4); border-color:var(--grade4); font-weight:700; }
+
+.legend{
+    display:flex;
+    flex-wrap:wrap;
+    gap:14px;
+    font-size:12px;
+    color:var(--ink-soft);
+    margin-bottom:14px;
+    padding-bottom:12px;
+    border-bottom:1px dashed var(--border);
+}
+
+.legend span.swatch{
+    display:inline-block;
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    margin-right:5px;
+}
+
+.legend .item{ display:flex; align-items:center; }
+
+.table-scroll{
+    overflow-x:auto;
+    -webkit-overflow-scrolling:touch;
+    min-width:0;
+    max-width:100%;
+    border-radius:10px;
+    border:1px solid var(--border);
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:var(--panel);
+    font-size:13.5px;
+    min-width:520px;
+}
+
+thead th{
+    position:sticky;
+    top:0;
+    background:var(--forest);
+    color:#fdf9ef;
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    padding:10px 8px;
+    text-align:center;
+    border-bottom:2px solid var(--gold);
+}
+
+tbody td{
+    border-bottom:1px solid var(--border);
+    padding:9px 8px;
+    text-align:center;
+    vertical-align:middle;
+}
+
+tbody tr:nth-child(even){ background:#fbf8f0; }
+
+tbody tr.top-row{ background:#fdf3dc; }
+
+tbody tr:hover{ background:#f4ecd8; }
+
+td.remedy-cell{
+    text-align:left;
+    font-weight:700;
+    color:var(--forest);
+    font-family:'Fraunces',serif;
+    font-size:14.5px;
+    white-space:nowrap;
+}
+
+.rank-badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:22px;
+    height:22px;
+    border-radius:50%;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11.5px;
+    font-weight:700;
+    background:#eee6d2;
+    color:var(--forest);
+}
+
+.rank-badge.r1{ background:var(--gold); color:#fff; }
+.rank-badge.r2{ background:#d8cba4; color:#3a2f18; }
+.rank-badge.r3{ background:#e6dcc0; color:#3a2f18; }
+
+.grade-cell .pill{ padding:3px 7px; font-size:11.5px; }
+
+.dash{ color:#c7bfa8; font-family:'IBM Plex Mono',monospace; }
+
+.total-wrap{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    justify-content:center;
+    min-width:90px;
+}
+
+.total-num{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:700;
+    color:var(--forest);
+    font-size:13.5px;
+    min-width:20px;
+}
+
+.total-bar-track{
+    flex:1;
+    height:6px;
+    background:#efe8d5;
+    border-radius:4px;
+    overflow:hidden;
+    max-width:64px;
+}
+
+.total-bar-fill{
+    height:100%;
+    background:linear-gradient(90deg,var(--gold),var(--forest-light));
+    border-radius:4px;
+}
+
+.rubric-count-cell{
+    font-family:'IBM Plex Mono',monospace;
+    font-weight:600;
+    color:var(--ink-soft);
+}
+
+.results-empty{
+    padding:30px 16px;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:14px;
+    font-style:italic;
+}
+
+footer.tag{
+    position:fixed;
+    bottom:0; left:0; right:0;
+    text-align:center;
+    padding:10px 10px;
+    background:var(--forest);
+    color:var(--gold-light);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    letter-spacing:.04em;
+    z-index:5;
+    border-top:2px solid var(--gold);
+}
+footer.tag b{ color:#fff; }
+
+@media(max-width:700px){
+    .card{ padding:16px; }
+    .card h3{ font-size:17px; }
+    table{ font-size:12px; }
+    thead th, tbody td{ padding:7px 5px; }
+    .actions{ gap:8px; }
+    .actions button{ flex:1 1 auto; min-width:0; padding:10px 12px; }
+}
+
+@media(max-width:420px){
+    header.top .eyebrow{ font-size:10px; letter-spacing:.08em; padding:5px 10px; }
+    .subtitle{ font-size:13px; }
+}
+
+</style>
+
+</head>
+<body>
+
+<div class="container">
+
+<header class="top">
+<span class="eyebrow">Homeopathic Case Analysis</span>
+<h2>Mini Repertorization</h2>
+<p class="subtitle">Add rubric lines with remedies and grades — the grid below tallies coverage and weight across your case. created by - Sahil</p>
+</header>
+
+<div class="layout">
+
+<div>
+<div class="card">
+<h3>Add a Rubric</h3>
+<textarea id="input" placeholder="e.g. Mind - Anxiety, health about: acon, ARS(3), calc, Puls(2)."></textarea>
+<p class="hint">Format: <em>title</em> : <em>remedy, remedy(grade), remedy(grade)…</em> — no grade means grade 1.</p>
+<div class="actions">
+<button class="add" id="addBtn" onclick="addRubric()">
+<span id="addBtnInner">Add Rubric</span>
+</button>
+<button class="clear" onclick="clearAll()">Clear All</button>
+</div>
+</div>
+
+<div class="card">
+<h3>Selected Rubrics <span class="count-pill" id="rubricCountPill">0</span></h3>
+<div id="rubrics"></div>
+</div>
+</div>
+
+<div class="card">
+<h3>Repertorization Grid</h3>
+
+<div class="legend">
+<span class="item"><span class="swatch" style="background:var(--grade1)"></span>Grade 1 · minor</span>
+<span class="item"><span class="swatch" style="background:var(--grade2)"></span>Grade 2 · moderate</span>
+<span class="item"><span class="swatch" style="background:var(--grade3)"></span>Grade 3 · important</span>
+<span class="item"><span class="swatch" style="background:var(--grade4)"></span>Grade 4 · keynote</span>
+</div>
+
+<div class="table-scroll">
+<table id="resultTable">
+<thead>
+<tr id="resultHeadRow">
+<th>Rank</th>
+<th>Remedy</th>
+<th>Rubrics</th>
+<th>Total</th>
+</tr>
+</thead>
+<tbody></tbody>
+</table>
+</div>
+
+</div>
+
+</div>
+
+</div>
+
+<footer class="tag">made with <b>&hearts;</b> by <b>Sahil</b></footer>
+
+<script>
+
+let repertory=[];
+
+function formatName(name){
+    return name.split("-").map(part=>{
+        if(part.length===0) return part;
+        return part.charAt(0).toUpperCase()+part.slice(1).toLowerCase();
+    }).join("-");
+}
+
+function gradeClass(g){
+    if(g>=4) return "g4";
+    if(g===3) return "g3";
+    if(g===2) return "g2";
+    return "g1";
+}
+
+function parseRubric(line){
+
+    line=line.trim();
+
+    if(!line) return null;
+
+    let idx=line.lastIndexOf(":");
+
+    if(idx===-1) return null;
+
+    let title=line.substring(0,idx).trim();
+
+    let medicines=line.substring(idx+1).trim();
+
+    if(!title || !medicines) return null;
+
+    let tokens=medicines.split(/[,\s]+/).filter(t=>t.length>0);
+
+    let meds={};
+
+    tokens.forEach(tok=>{
+
+        tok=tok.replace(/[.,;]+$/,"");
+
+        if(!tok) return;
+
+        let m=tok.match(/^([A-Za-z][A-Za-z0-9\-]*)(?:\((\d)\))?$/);
+
+        if(!m) return;
+
+        let name=m[1].toUpperCase();
+
+        let grade=m[2]?parseInt(m[2],10):1;
+
+        if(grade<1) grade=1;
+        if(grade>4) grade=4;
+
+        if(!meds[name] || grade>meds[name]){
+            meds[name]=grade;
+        }
+
+    });
+
+    if(Object.keys(meds).length===0) return null;
+
+    return{
+        title:title,
+        medicines:meds
+    };
+
+}
+
+function addRubric(){
+
+    let field=document.getElementById("input");
+    let txt=field.value.trim();
+
+    if(!txt) return;
+
+    let btn=document.getElementById("addBtn");
+    let inner=document.getElementById("addBtnInner");
+
+    if(btn.disabled) return;
+
+    btn.disabled=true;
+    inner.innerHTML='<span class="spinner"></span> Adding…';
+
+    setTimeout(()=>{
+
+        let obj=parseRubric(txt);
+
+        if(obj){
+            repertory.push(obj);
+            field.value="";
+            render();
+        }
+
+        btn.disabled=false;
+        inner.textContent="Add Rubric";
+
+    }, 450);
+
+}
+
+function removeRubric(i){
+
+    repertory.splice(i,1);
+
+    render();
+
+}
+
+function clearAll(){
+
+    repertory=[];
+
+    render();
+
+}
+
+function render(){
+
+    let rub=document.getElementById("rubrics");
+
+    document.getElementById("rubricCountPill").textContent=repertory.length;
+
+    rub.innerHTML="";
+
+    if(repertory.length===0){
+        rub.innerHTML='<div class="empty-note">No rubrics added yet.</div>';
+        calculate();
+        return;
+    }
+
+    repertory.forEach((r,i)=>{
+
+        let medEntries=Object.entries(r.medicines).sort((a,b)=>{
+            if(b[1]!==a[1]) return b[1]-a[1];
+            return a[0].localeCompare(b[0]);
+        });
+
+        let pills=medEntries.map(([name,grade])=>{
+            return `<span class="pill ${gradeClass(grade)}">${formatName(name)} (${grade})</span>`;
+        }).join("");
+
+        let card=document.createElement("div");
+        card.className="rubric";
+        card.innerHTML=`
+<div class="rubric-head">
+<div class="rubric-title">
+<span class="rubric-index">${i+1}.</span>
+<span class="rubric-text">${r.title}</span>
+</div>
+<div class="rubric-meta">
+<span class="med-count">${medEntries.length} remedy${medEntries.length===1?"":"ies"}</span>
+<button class="remove" onclick="removeRubric(${i})">Remove</button>
+</div>
+</div>
+<details class="remedy-drop">
+<summary>Show remedies</summary>
+<div class="remedy-list">${pills}</div>
+</details>
+`;
+
+        rub.appendChild(card);
+
+    });
+
+    calculate();
+
+}
+
+function calculate(){
+
+    let head=document.getElementById("resultHeadRow");
+    let tbody=document.querySelector("#resultTable tbody");
+
+    // rebuild header: Rank, Remedy, R1..Rn, Rubrics, Total
+    head.innerHTML="<th>Rank</th><th>Remedy</th>";
+
+    repertory.forEach((r,i)=>{
+        let th=document.createElement("th");
+        th.textContent="R"+(i+1);
+        th.title=r.title;
+        head.appendChild(th);
+    });
+
+    let rubricsTh=document.createElement("th");
+    rubricsTh.textContent="Rubrics";
+    head.appendChild(rubricsTh);
+
+    let totalTh=document.createElement("th");
+    totalTh.textContent="Total";
+    head.appendChild(totalTh);
+
+    if(repertory.length===0){
+        tbody.innerHTML=`<tr><td colspan="4" class="results-empty">Add rubrics to see the repertorization grid.</td></tr>`;
+        return;
+    }
+
+    let result={};
+
+    repertory.forEach((rubric,ri)=>{
+
+        for(let med in rubric.medicines){
+
+            if(!result[med]){
+                result[med]={
+                    score:0,
+                    rubrics:0,
+                    grades:Array(repertory.length).fill(null)
+                };
+            }
+
+            let g=rubric.medicines[med];
+
+            result[med].score+=g;
+            result[med].rubrics++;
+            result[med].grades[ri]=g;
+
+        }
+
+    });
+
+    let arr=Object.entries(result);
+
+    arr.sort((a,b)=>{
+
+        if(b[1].rubrics!==a[1].rubrics)
+            return b[1].rubrics-a[1].rubrics;
+
+        if(b[1].score!==a[1].score)
+            return b[1].score-a[1].score;
+
+        return a[0].localeCompare(b[0]);
+
+    });
+
+    let maxScore=arr.length?arr[0][1].score:1;
+    if(maxScore===0) maxScore=1;
+
+    tbody.innerHTML="";
+
+    arr.forEach((e,index)=>{
+
+        let rank=index+1;
+
+        let rankBadgeClass=rank===1?"r1":(rank===2?"r2":(rank===3?"r3":""));
+
+        let gradeCells=e[1].grades.map(g=>{
+            if(g===null) return `<td class="grade-cell"><span class="dash">–</span></td>`;
+            return `<td class="grade-cell"><span class="pill ${gradeClass(g)}">${g}</span></td>`;
+        }).join("");
+
+        let barPct=Math.round((e[1].score/maxScore)*100);
+
+        let tr=document.createElement("tr");
+        if(rank===1) tr.className="top-row";
+
+        tr.innerHTML=`
+<td><span class="rank-badge ${rankBadgeClass}">${rank}</span></td>
+<td class="remedy-cell">${formatName(e[0])}</td>
+${gradeCells}
+<td class="rubric-count-cell">${e[1].rubrics}/${repertory.length}</td>
+<td>
+<div class="total-wrap">
+<span class="total-num">${e[1].score}</span>
+<span class="total-bar-track"><span class="total-bar-fill" style="width:${barPct}%"></span></span>
+</div>
+</td>
+`;
+
+        tbody.appendChild(tr);
+
+    });
+
+}
+
+render();
+
+</script>
+
+</body>
+</html>
