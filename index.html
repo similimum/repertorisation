@@ -314,6 +314,84 @@ button:active{ transform:scale(.97); }
 
 .remove:hover{ background:#efd0cb; }
 
+.head-actions{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+}
+
+.icon-btn{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    font-weight:600;
+    padding:6px 11px;
+    border-radius:999px;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--forest);
+    cursor:pointer;
+    white-space:nowrap;
+    transition:background .15s ease,color .15s ease,border-color .15s ease;
+}
+
+.icon-btn:hover{ background:#f1ece0; }
+
+.icon-btn.copied{
+    background:var(--forest);
+    color:#fdf9ef;
+    border-color:var(--forest);
+}
+
+.copy-mini{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    font-weight:600;
+    padding:5px 9px;
+    border-radius:6px;
+    background:#eef0f3;
+    color:var(--forest);
+    border:1px solid var(--border);
+    cursor:pointer;
+    white-space:nowrap;
+}
+
+.copy-mini:hover{ background:#e4ecdd; }
+
+.copy-mini.copied{
+    background:var(--forest);
+    color:#fdf9ef;
+    border-color:var(--forest);
+}
+
+#toast{
+    position:fixed;
+    left:50%;
+    bottom:64px;
+    transform:translateX(-50%) translateY(12px);
+    background:var(--forest);
+    color:#fdf9ef;
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12.5px;
+    font-weight:600;
+    padding:10px 18px;
+    border-radius:999px;
+    box-shadow:var(--shadow);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .2s ease, transform .2s ease;
+    z-index:20;
+    white-space:nowrap;
+}
+
+#toast.show{
+    opacity:1;
+    transform:translateX(-50%) translateY(0);
+}
+
 details.remedy-drop{ border-top:1px solid var(--border); }
 
 details.remedy-drop > summary{
@@ -524,11 +602,12 @@ footer.tag b{ color:#fff; }
 
 @media(max-width:700px){
     .card{ padding:16px; }
-    .card h3{ font-size:17px; }
+    .card h3{ font-size:17px; flex-wrap:wrap; }
     table{ font-size:12px; }
     thead th, tbody td{ padding:7px 5px; }
     .actions{ gap:8px; }
     .actions button{ flex:1 1 auto; min-width:0; padding:10px 12px; }
+    .icon-btn{ font-size:10.5px; padding:6px 10px; }
 }
 
 @media(max-width:420px){
@@ -565,13 +644,13 @@ footer.tag b{ color:#fff; }
 </div>
 
 <div class="card">
-<h3>Selected Rubrics <span class="count-pill" id="rubricCountPill">0</span></h3>
+<h3>Selected Rubrics <span class="head-actions"><span class="count-pill" id="rubricCountPill">0</span><button class="icon-btn" id="copyAllBtn" onclick="copyAllRubrics(this)">Copy All</button></span></h3>
 <div id="rubrics"></div>
 </div>
 </div>
 
 <div class="card">
-<h3>Repertorization Grid</h3>
+<h3>Repertorization Grid <button class="icon-btn" id="copyResultBtn" onclick="copyResultText(this)">Copy Result</button></h3>
 
 <div class="legend">
 <span class="item"><span class="swatch" style="background:var(--grade1)"></span>Grade 1 · minor</span>
@@ -601,6 +680,8 @@ footer.tag b{ color:#fff; }
 </div>
 
 <footer class="tag">made with <b>&hearts;</b> by <b>Sahil</b></footer>
+
+<div id="toast"></div>
 
 <script>
 
@@ -755,6 +836,7 @@ function render(){
 </div>
 <div class="rubric-meta">
 <span class="med-count">${medEntries.length} remedy${medEntries.length===1?"":"ies"}</span>
+<button class="copy-mini" onclick="copyRubric(${i},this)">Copy</button>
 <button class="remove" onclick="removeRubric(${i})">Remove</button>
 </div>
 </div>
@@ -772,33 +854,7 @@ function render(){
 
 }
 
-function calculate(){
-
-    let head=document.getElementById("resultHeadRow");
-    let tbody=document.querySelector("#resultTable tbody");
-
-    // rebuild header: Rank, Remedy, R1..Rn, Rubrics, Total
-    head.innerHTML="<th>Rank</th><th>Remedy</th>";
-
-    repertory.forEach((r,i)=>{
-        let th=document.createElement("th");
-        th.textContent="R"+(i+1);
-        th.title=r.title;
-        head.appendChild(th);
-    });
-
-    let rubricsTh=document.createElement("th");
-    rubricsTh.textContent="Rubrics";
-    head.appendChild(rubricsTh);
-
-    let totalTh=document.createElement("th");
-    totalTh.textContent="Total";
-    head.appendChild(totalTh);
-
-    if(repertory.length===0){
-        tbody.innerHTML=`<tr><td colspan="4" class="results-empty">Add rubrics to see the repertorization grid.</td></tr>`;
-        return;
-    }
+function computeResults(){
 
     let result={};
 
@@ -838,6 +894,40 @@ function calculate(){
 
     });
 
+    return arr;
+
+}
+
+function calculate(){
+
+    let head=document.getElementById("resultHeadRow");
+    let tbody=document.querySelector("#resultTable tbody");
+
+    // rebuild header: Rank, Remedy, R1..Rn, Rubrics, Total
+    head.innerHTML="<th>Rank</th><th>Remedy</th>";
+
+    repertory.forEach((r,i)=>{
+        let th=document.createElement("th");
+        th.textContent="R"+(i+1);
+        th.title=r.title;
+        head.appendChild(th);
+    });
+
+    let rubricsTh=document.createElement("th");
+    rubricsTh.textContent="Rubrics";
+    head.appendChild(rubricsTh);
+
+    let totalTh=document.createElement("th");
+    totalTh.textContent="Total";
+    head.appendChild(totalTh);
+
+    if(repertory.length===0){
+        tbody.innerHTML=`<tr><td colspan="4" class="results-empty">Add rubrics to see the repertorization grid.</td></tr>`;
+        return;
+    }
+
+    let arr=computeResults();
+
     let maxScore=arr.length?arr[0][1].score:1;
     if(maxScore===0) maxScore=1;
 
@@ -875,6 +965,157 @@ ${gradeCells}
         tbody.appendChild(tr);
 
     });
+
+}
+
+function formatMedsLine(r){
+
+    let medEntries=Object.entries(r.medicines).sort((a,b)=>{
+        if(b[1]!==a[1]) return b[1]-a[1];
+        return a[0].localeCompare(b[0]);
+    });
+
+    return medEntries.map(([name,grade])=>`${formatName(name)}(${grade})`).join(", ");
+
+}
+
+function showToast(msg){
+
+    let toast=document.getElementById("toast");
+    toast.textContent=msg;
+    toast.classList.add("show");
+
+    clearTimeout(toast._hideTimeout);
+    toast._hideTimeout=setTimeout(()=>{
+        toast.classList.remove("show");
+    },1800);
+
+}
+
+function flashButton(btn,label){
+
+    if(!btn) return;
+
+    if(!btn.dataset.original) btn.dataset.original=btn.innerHTML;
+
+    btn.innerHTML=label;
+    btn.classList.add("copied");
+
+    clearTimeout(btn._copyTimeout);
+    btn._copyTimeout=setTimeout(()=>{
+        btn.innerHTML=btn.dataset.original;
+        btn.classList.remove("copied");
+    },1600);
+
+}
+
+function fallbackCopy(text){
+
+    let ta=document.createElement("textarea");
+    ta.value=text;
+    ta.style.position="fixed";
+    ta.style.top="0";
+    ta.style.left="0";
+    ta.style.opacity="0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+
+    try{ document.execCommand("copy"); }catch(e){}
+
+    document.body.removeChild(ta);
+
+}
+
+function copyToClipboard(text,btn,label){
+
+    let done=()=>{
+        flashButton(btn,label||"Copied ✓");
+        showToast("Copied to clipboard");
+    };
+
+    if(navigator.clipboard && navigator.clipboard.writeText){
+        navigator.clipboard.writeText(text).then(done).catch(()=>{
+            fallbackCopy(text);
+            done();
+        });
+    } else {
+        fallbackCopy(text);
+        done();
+    }
+
+}
+
+function copyRubric(i,btn){
+
+    let r=repertory[i];
+
+    if(!r) return;
+
+    let text=`*${i+1}. ${r.title}*\n${formatMedsLine(r)}`;
+
+    copyToClipboard(text,btn,"Copied ✓");
+
+}
+
+function copyAllRubrics(btn){
+
+    if(repertory.length===0){
+        showToast("No rubrics to copy yet");
+        return;
+    }
+
+    let lines=repertory.map((r,i)=>`*${i+1}. ${r.title}*\n${formatMedsLine(r)}`);
+
+    let text="*🌿 Selected Rubrics*\n\n"+lines.join("\n\n");
+
+    copyToClipboard(text,btn,"Copied ✓");
+
+}
+
+function copyResultText(btn){
+
+    if(repertory.length===0){
+        showToast("Add rubrics first");
+        return;
+    }
+
+    let arr=computeResults();
+
+    let lines=[];
+
+    lines.push("*🌿 Mini Repertorization*");
+    lines.push("");
+    lines.push("*Rubrics considered:*");
+
+    repertory.forEach((r,i)=>{
+        lines.push(`${i+1}. ${r.title} — ${formatMedsLine(r)}`);
+    });
+
+    lines.push("");
+    lines.push("*Result (ranked by coverage):*");
+
+    arr.forEach((e,index)=>{
+
+        let rank=index+1;
+        let name=formatName(e[0]);
+
+        let gradesStr=e[1].grades
+            .map((g,gi)=>g===null?null:`R${gi+1}:${g}`)
+            .filter(Boolean)
+            .join("  ");
+
+        let marker=rank===1?"":"";
+
+        lines.push(`${rank}. ${marker}*${name}* — ${e[1].rubrics}/${repertory.length} rubrics, total ${e[1].score}`);
+
+        if(gradesStr) lines.push(`   ${gradesStr}`);
+
+    });
+
+    let text=lines.join("\n");
+
+    copyToClipboard(text,btn,"Copied ✓");
 
 }
 
