@@ -235,6 +235,73 @@ button:active{ transform:scale(.97); }
 
 @keyframes spin{ to{ transform:rotate(360deg); } }
 
+.case-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:12px 14px;
+    margin-bottom:14px;
+}
+
+.case-grid .field-wide{ grid-column:1/-1; }
+
+@media(min-width:520px){
+    .case-grid{ grid-template-columns:1fr 1fr 1fr; }
+    .case-grid .field-wide{ grid-column:span 1; }
+}
+
+.field{
+    display:flex;
+    flex-direction:column;
+    gap:5px;
+    min-width:0;
+}
+
+.field label{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:11px;
+    letter-spacing:.04em;
+    text-transform:uppercase;
+    color:var(--ink-soft);
+}
+
+.field input[type=text],
+.field select{
+    width:100%;
+    padding:10px 12px;
+    font-size:15px;
+    font-family:'Inter',sans-serif;
+    border-radius:10px;
+    border:1px solid var(--border);
+    background:#fffefb;
+    color:var(--ink);
+    box-sizing:border-box;
+}
+
+.field input[type=text]:focus,
+.field select:focus{
+    outline:2px solid var(--gold-light);
+    outline-offset:1px;
+    border-color:var(--gold);
+}
+
+.field-block{ margin-bottom:14px; }
+
+.field-block textarea{ min-height:64px; }
+
+.save-pdf{
+    background:var(--gold);
+    color:#fff;
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    min-width:170px;
+    justify-content:center;
+}
+
+.save-pdf:hover:not(:disabled){ background:#9a6d33; }
+
+.save-pdf:disabled{ cursor:default; opacity:.85; }
+
 #rubrics{
     display:flex;
     flex-direction:column;
@@ -624,13 +691,57 @@ footer.tag b{ color:#fff; }
 
 <header class="top">
 <span class="eyebrow">Homeopathic Case Analysis</span>
-<h2>Mini Repertorization</h2>
+<h2>Mini Repertorization - Similimum</h2>
 <p class="subtitle">Add rubric lines with remedies and grades — the grid below tallies coverage and weight across your case. </p>
 </header>
 
 <div class="layout">
 
 <div>
+<div class="card" id="caseCard">
+<h3>Patient &amp; Case Details</h3>
+
+<div class="case-grid">
+<div class="field">
+<label for="caseName">Name</label>
+<input type="text" id="caseName" placeholder="Patient's full name">
+</div>
+<div class="field">
+<label for="caseAge">Age</label>
+<input type="text" id="caseAge" placeholder="e.g. 34 or 6y">
+</div>
+<div class="field">
+<label for="caseSex">Sex</label>
+<select id="caseSex">
+<option value="">Select</option>
+<option value="Male">Male</option>
+<option value="Female">Female</option>
+<option value="Other">Other</option>
+</select>
+</div>
+<div class="field field-wide">
+<label for="caseAddress">Address</label>
+<input type="text" id="caseAddress" placeholder="Address">
+</div>
+</div>
+
+<div class="field field-block">
+<label for="caseComplaints">Complaints</label>
+<textarea id="caseComplaints" placeholder="Presenting complaints..."></textarea>
+</div>
+
+<div class="field field-block">
+<label for="caseRx">Prescription (Rx)</label>
+<textarea id="caseRx" placeholder=""></textarea>
+</div>
+
+<div class="actions">
+<button class="save-pdf" id="savePdfBtn" onclick="saveCaseAsPDF(this)">
+<span id="savePdfBtnInner">Save Case as PDF</span>
+</button>
+</div>
+</div>
+
 <div class="card">
 <h3>Add a Rubric</h3>
 <textarea id="input" placeholder="e.g. Mind - Anxiety, health about: acon, ARS(3), calc, Puls(2)."></textarea>
@@ -683,6 +794,8 @@ footer.tag b{ color:#fff; }
 
 <div id="toast"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script>
 
 let repertory=[];
@@ -1105,7 +1218,7 @@ function copyResultText(btn){
             .filter(Boolean)
             .join("  ");
 
-        let marker=rank===1?"":"";
+        let marker=rank===1?"🏆 ":"";
 
         lines.push(`${rank}. ${marker}*${name}* — ${e[1].rubrics}/${repertory.length} rubrics, total ${e[1].score}`);
 
@@ -1116,6 +1229,447 @@ function copyResultText(btn){
     let text=lines.join("\n");
 
     copyToClipboard(text,btn,"Copied ✓");
+
+}
+
+function pdfFilenameSlug(str){
+
+    return str.trim().replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_+|_+$/g,"") || "Case";
+
+}
+
+function saveCaseAsPDF(btn){
+
+    if(!(window.jspdf && window.jspdf.jsPDF)){
+        showToast("PDF library unavailable — check your connection");
+        return;
+    }
+
+    let name=document.getElementById("caseName").value.trim();
+    let age=document.getElementById("caseAge").value.trim();
+    let sex=document.getElementById("caseSex").value;
+    let address=document.getElementById("caseAddress").value.trim();
+    let complaints=document.getElementById("caseComplaints").value.trim();
+    let rx=document.getElementById("caseRx").value.trim();
+
+    if(!name){
+        showToast("Enter patient name first");
+        document.getElementById("caseName").focus();
+        return;
+    }
+
+    let original=btn?btn.innerHTML:null;
+
+    if(btn){
+        btn.disabled=true;
+        btn.innerHTML='<span class="spinner"></span> Saving…';
+    }
+
+    try{
+
+        const{jsPDF}=window.jspdf;
+        let doc=new jsPDF({unit:"pt",format:"a4"});
+
+        // theme palette, matching the app's CSS variables
+        const FOREST=[35,61,44];
+        const GOLD=[176,128,60];
+        const INK=[32,40,31];
+        const INK_SOFT=[91,100,89];
+        const BORDER=[225,215,191];
+        const STRIPE=[251,248,240];
+        const TOP_ROW=[253,243,220];
+        const GRADE_COLORS={
+            1:{fill:[238,240,243],border:[216,220,226],text:[91,100,114]},
+            2:{fill:[231,240,247],border:[201,223,238],text:[43,98,138]},
+            3:{fill:[251,234,231],border:[240,202,195],text:[178,58,47]},
+            4:{fill:[122,30,61],border:[122,30,61],text:[255,255,255]}
+        };
+
+        let margin=48;
+        let pageWidth=doc.internal.pageSize.getWidth();
+        let pageHeight=doc.internal.pageSize.getHeight();
+        let contentWidth=pageWidth-margin*2;
+        let y=margin;
+
+        let now=new Date();
+        let dateStr=now.toLocaleDateString();
+        let timeStr=now.toLocaleTimeString();
+
+        function ensureSpace(yPos,needed){
+            if(yPos+needed>pageHeight-margin){
+                doc.addPage();
+                return margin;
+            }
+            return yPos;
+        }
+
+        function sectionHeading(title,color){
+            y=ensureSpace(y,30);
+            doc.setFillColor(color[0],color[1],color[2]);
+            doc.circle(margin+3,y-4,3,'F');
+            doc.setFont("times","bold");
+            doc.setFontSize(13);
+            doc.setTextColor(color[0],color[1],color[2]);
+            doc.text(title,margin+13,y);
+            y+=7;
+            doc.setDrawColor(BORDER[0],BORDER[1],BORDER[2]);
+            doc.setLineWidth(0.6);
+            doc.line(margin,y,pageWidth-margin,y);
+            y+=17;
+        }
+
+        function paragraph(text,color){
+            doc.setFont("helvetica","normal");
+            doc.setFontSize(11);
+            doc.setTextColor(color[0],color[1],color[2]);
+            let lines=doc.splitTextToSize(text,contentWidth);
+            lines.forEach(line=>{
+                y=ensureSpace(y,16);
+                doc.text(line,margin,y);
+                y+=16;
+            });
+        }
+
+        function drawPill(x,yBase,text,grade){
+            let c=GRADE_COLORS[grade]||GRADE_COLORS[1];
+            doc.setFont("courier","bold");
+            doc.setFontSize(8);
+            let paddingX=6;
+            let textW=doc.getTextWidth(text);
+            let pillW=textW+paddingX*2;
+            let pillH=13;
+            doc.setFillColor(c.fill[0],c.fill[1],c.fill[2]);
+            doc.setDrawColor(c.border[0],c.border[1],c.border[2]);
+            doc.setLineWidth(0.6);
+            doc.roundedRect(x,yBase-10,pillW,pillH,5,5,'FD');
+            doc.setTextColor(c.text[0],c.text[1],c.text[2]);
+            doc.text(text,x+paddingX,yBase-1);
+            return pillW;
+        }
+
+        // ---- header banner ----
+        doc.setFillColor(255,253,248);
+        doc.setDrawColor(BORDER[0],BORDER[1],BORDER[2]);
+        doc.setLineWidth(0.8);
+        let eyebrowText="HOMEOPATHIC CASE ANALYSIS";
+        doc.setFont("courier","bold");
+        doc.setFontSize(8);
+        let eyebrowW=doc.getTextWidth(eyebrowText)+20;
+        doc.roundedRect(margin,y,eyebrowW,18,9,9,'FD');
+        doc.setTextColor(GOLD[0],GOLD[1],GOLD[2]);
+        doc.text(eyebrowText,margin+10,y+12);
+        y+=38;
+
+        doc.setFont("times","bold");
+        doc.setFontSize(22);
+        doc.setTextColor(FOREST[0],FOREST[1],FOREST[2]);
+        doc.text("Case Sheet",margin,y);
+
+        doc.setFont("helvetica","normal");
+        doc.setFontSize(10);
+        doc.setTextColor(150,150,150);
+        doc.text(`${dateStr}  ${timeStr}`,pageWidth-margin,y,{align:"right"});
+
+        y+=16;
+        doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
+        doc.setLineWidth(1.4);
+        doc.line(margin,y,pageWidth-margin,y);
+        y+=28;
+
+        // ---- patient details ----
+        sectionHeading("Patient Details",FOREST);
+
+        function fieldLine(label,value,x,yPos){
+            doc.setFont("courier","bold");
+            doc.setFontSize(8);
+            doc.setTextColor(INK_SOFT[0],INK_SOFT[1],INK_SOFT[2]);
+            doc.text(label.toUpperCase(),x,yPos);
+            doc.setFont("helvetica","normal");
+            doc.setFontSize(11.5);
+            doc.setTextColor(INK[0],INK[1],INK[2]);
+            doc.text(value||"—",x,yPos+14);
+        }
+
+        let colW=contentWidth/3;
+        fieldLine("Name",name,margin,y);
+        fieldLine("Age",age,margin+colW,y);
+        fieldLine("Sex",sex,margin+colW*2,y);
+        y+=38;
+
+        if(address){
+            doc.setFont("courier","bold");
+            doc.setFontSize(8);
+            doc.setTextColor(INK_SOFT[0],INK_SOFT[1],INK_SOFT[2]);
+            doc.text("ADDRESS",margin,y);
+            y+=14;
+            doc.setFont("helvetica","normal");
+            doc.setFontSize(11.5);
+            doc.setTextColor(INK[0],INK[1],INK[2]);
+            let addrLines=doc.splitTextToSize(address,contentWidth);
+            addrLines.forEach(line=>{
+                y=ensureSpace(y,15);
+                doc.text(line,margin,y);
+                y+=15;
+            });
+        }
+
+        y+=18;
+
+        // ---- complaints ----
+        if(complaints){
+            sectionHeading("Complaints",FOREST);
+            paragraph(complaints,INK);
+            y+=14;
+        }
+
+        // ---- prescription (Rx) — shown before repertorization ----
+        if(rx){
+            sectionHeading("Rx — Prescription",GOLD);
+
+            doc.setFont("helvetica","normal");
+            doc.setFontSize(11.5);
+            let rxLines=doc.splitTextToSize(rx,contentWidth-24);
+            let boxH=rxLines.length*16+20;
+
+            y=ensureSpace(y,boxH+8);
+            doc.setFillColor(253,247,232);
+            doc.setDrawColor(GOLD[0],GOLD[1],GOLD[2]);
+            doc.setLineWidth(0.9);
+            doc.roundedRect(margin,y-6,contentWidth,boxH,7,7,'FD');
+
+            let ty=y+10;
+            doc.setTextColor(INK[0],INK[1],INK[2]);
+            rxLines.forEach(line=>{
+                doc.text(line,margin+12,ty);
+                ty+=16;
+            });
+
+            y+=boxH+22;
+        }
+
+        // ---- rubrics considered ----
+        if(repertory.length>0){
+
+            sectionHeading("Rubrics Considered",FOREST);
+
+            repertory.forEach((r,i)=>{
+
+                doc.setFont("helvetica","bold");
+                doc.setFontSize(10.5);
+                doc.setTextColor(INK[0],INK[1],INK[2]);
+                let titleLines=doc.splitTextToSize(`${i+1}. ${r.title}`,contentWidth);
+                y=ensureSpace(y,titleLines.length*14+16);
+                doc.text(titleLines,margin,y);
+                y+=titleLines.length*14+4;
+
+                let medEntries=Object.entries(r.medicines).sort((a,b)=>{
+                    if(b[1]!==a[1]) return b[1]-a[1];
+                    return a[0].localeCompare(b[0]);
+                });
+
+                let cx=margin+8;
+                let rowH=17;
+                y=ensureSpace(y,rowH);
+
+                medEntries.forEach(([medName,grade])=>{
+                    let label=`${formatName(medName)} (${grade})`;
+                    doc.setFont("courier","bold");
+                    doc.setFontSize(8);
+                    let w=doc.getTextWidth(label)+12;
+                    if(cx+w>margin+contentWidth){
+                        cx=margin+8;
+                        y+=rowH;
+                        y=ensureSpace(y,rowH);
+                    }
+                    drawPill(cx,y,label,grade);
+                    cx+=w+5;
+                });
+
+                y+=rowH+10;
+
+            });
+
+            y+=4;
+
+        }
+
+        // ---- repertorization result (themed table) ----
+        if(repertory.length>0){
+
+            let arr=computeResults();
+            let maxScore=arr.length?arr[0][1].score:1;
+            if(maxScore===0) maxScore=1;
+
+            sectionHeading("Repertorization Result",FOREST);
+
+            let head=[["Rank","Remedy"]];
+            repertory.forEach((r,i)=>head[0].push("R"+(i+1)));
+            head[0].push("Rubrics","Total");
+
+            let body=arr.map((e,index)=>{
+                let row=[String(index+1),formatName(e[0])];
+                e[1].grades.forEach(g=>row.push(g===null?"–":String(g)));
+                row.push(`${e[1].rubrics}/${repertory.length}`);
+                row.push(String(e[1].score));
+                return row;
+            });
+
+            let gradeColStart=2;
+            let gradeColEnd=2+repertory.length-1;
+            let rubricsColIdx=2+repertory.length;
+            let totalColIdx=rubricsColIdx+1;
+
+            let rankW=24, rubricsW=44, totalW=54;
+            let gradeW=repertory.length>10?15:(repertory.length>6?17:20);
+            let fixedOthers=rankW+rubricsW+totalW+gradeW*repertory.length;
+            let remedyW=Math.max(60,contentWidth-fixedOthers);
+
+            let columnStyles={
+                0:{cellWidth:rankW},
+                1:{cellWidth:remedyW,halign:"left",font:"times",fontStyle:"bold",textColor:FOREST}
+            };
+            for(let i=0;i<repertory.length;i++){
+                columnStyles[2+i]={cellWidth:gradeW};
+            }
+            columnStyles[rubricsColIdx]={cellWidth:rubricsW,font:"courier",fontSize:7.5,textColor:INK_SOFT};
+            columnStyles[totalColIdx]={cellWidth:totalW,halign:"left"};
+
+            doc.autoTable({
+                startY:y,
+                margin:{left:margin,right:margin},
+                head:head,
+                body:body,
+                theme:"plain",
+                tableWidth:contentWidth,
+                styles:{
+                    font:"helvetica",
+                    fontSize:repertory.length>10?7:8.5,
+                    cellPadding:{top:6,bottom:6,left:4,right:4},
+                    valign:"middle",
+                    halign:"center",
+                    lineColor:BORDER,
+                    lineWidth:0.6,
+                    textColor:INK
+                },
+                headStyles:{
+                    fillColor:FOREST,
+                    textColor:[253,249,239],
+                    font:"courier",
+                    fontStyle:"bold",
+                    fontSize:repertory.length>10?6.5:7.5,
+                    halign:"center",
+                    cellPadding:{top:7,bottom:7,left:3,right:3}
+                },
+                columnStyles:columnStyles,
+                didParseCell:function(data){
+                    if(data.section!=="body") return;
+                    if(data.row.index===0){
+                        data.cell.styles.fillColor=TOP_ROW;
+                    } else if(data.row.index%2===1){
+                        data.cell.styles.fillColor=STRIPE;
+                    }
+                    let ci=data.column.index;
+                    if(ci===0 || (ci>=gradeColStart&&ci<=gradeColEnd) || ci===totalColIdx){
+                        data.cell.text=[];
+                    }
+                },
+                didDrawCell:function(data){
+
+                    if(data.section!=="body") return;
+
+                    let ci=data.column.index;
+
+                    if(ci===0){
+                        let rank=data.row.index+1;
+                        let cx=data.cell.x+data.cell.width/2;
+                        let cy=data.cell.y+data.cell.height/2;
+                        let r=7.5;
+                        let fill=rank===1?GOLD:(rank===2?[216,203,164]:(rank===3?[230,220,192]:[238,230,210]));
+                        let txt=rank===1?[255,255,255]:[58,47,24];
+                        doc.setFillColor(fill[0],fill[1],fill[2]);
+                        doc.circle(cx,cy,r,'F');
+                        doc.setFont("courier","bold");
+                        doc.setFontSize(8);
+                        doc.setTextColor(txt[0],txt[1],txt[2]);
+                        doc.text(String(rank),cx,cy+2.8,{align:"center"});
+                        return;
+                    }
+
+                    if(ci>=gradeColStart && ci<=gradeColEnd){
+
+                        let raw=data.cell.raw;
+                        let cxm=data.cell.x+data.cell.width/2;
+                        let cym=data.cell.y+data.cell.height/2;
+
+                        if(raw==="–"){
+                            doc.setFont("courier","normal");
+                            doc.setFontSize(8);
+                            doc.setTextColor(199,191,168);
+                            doc.text("–",cxm,cym+2.8,{align:"center"});
+                            return;
+                        }
+
+                        let grade=parseInt(raw,10);
+                        let c=GRADE_COLORS[grade]||GRADE_COLORS[1];
+                        let pillW=17,pillH=13;
+                        let px=cxm-pillW/2, py=cym-pillH/2;
+                        doc.setFillColor(c.fill[0],c.fill[1],c.fill[2]);
+                        doc.setDrawColor(c.border[0],c.border[1],c.border[2]);
+                        doc.setLineWidth(0.5);
+                        doc.roundedRect(px,py,pillW,pillH,4,4,'FD');
+                        doc.setFont("courier","bold");
+                        doc.setFontSize(8);
+                        doc.setTextColor(c.text[0],c.text[1],c.text[2]);
+                        doc.text(String(grade),cxm,cym+2.8,{align:"center"});
+                        return;
+
+                    }
+
+                    if(ci===totalColIdx){
+                        let score=parseInt(data.cell.raw,10)||0;
+                        doc.setFont("courier","bold");
+                        doc.setFontSize(8.5);
+                        doc.setTextColor(FOREST[0],FOREST[1],FOREST[2]);
+                        doc.text(String(score),data.cell.x+5,data.cell.y+data.cell.height/2-1);
+
+                        let barX=data.cell.x+5;
+                        let barY=data.cell.y+data.cell.height/2+4;
+                        let barMaxW=Math.max(10,data.cell.width-14);
+                        let barW=Math.max(2,(score/maxScore)*barMaxW);
+                        doc.setFillColor(238,232,213);
+                        doc.roundedRect(barX,barY,barMaxW,4,2,2,'F');
+                        doc.setFillColor(GOLD[0],GOLD[1],GOLD[2]);
+                        doc.roundedRect(barX,barY,barW,4,2,2,'F');
+                    }
+
+                }
+            });
+
+            y=doc.lastAutoTable.finalY+16;
+
+        }
+
+        let dateSlug=now.getFullYear()+"-"+String(now.getMonth()+1).padStart(2,"0")+"-"+String(now.getDate()).padStart(2,"0");
+        let timeSlug=String(now.getHours()).padStart(2,"0")+"-"+String(now.getMinutes()).padStart(2,"0")+"-"+String(now.getSeconds()).padStart(2,"0");
+        let filename=`${pdfFilenameSlug(name)}_${dateSlug}_${timeSlug}.pdf`;
+
+        doc.save(filename);
+
+        showToast("Saved "+filename);
+
+    }catch(err){
+
+        console.error(err);
+        showToast("Could not generate PDF");
+
+    }finally{
+
+        if(btn){
+            btn.disabled=false;
+            btn.innerHTML=original;
+        }
+
+    }
 
 }
 
